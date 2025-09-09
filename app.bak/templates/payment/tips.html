@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add a Tip</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            position: relative;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        .body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 80vh;
+            margin: 0;
+            padding: 20px 10px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+            background-color: #333;
+            color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 350px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .header {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .bill {
+            font-size: 18px;
+            margin-bottom: 20px;
+            word-break: break-word;
+        }
+        .button {
+            display: block;
+            margin: 10px auto;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4a90e2;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        .button:hover {
+            background-color: #3a80d2;
+            transform: scale(1.02);
+        }
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            background-color: #ff5555;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        .close-btn:hover {
+            background-color: #ff3333;
+            transform: scale(1.1);
+        }
+        /* Таймер */
+        .timer-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px auto;
+            background-color: #f8f8f8;
+            border-radius: 20px;
+            padding: 8px 15px;
+            width: fit-content;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .timer-icon {
+            margin-right: 10px;
+            color: #ff5555;
+            font-size: 18px;
+        }
+        #timer {
+            font-size: 16px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        /* Медиа-запросы для адаптивности */
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+            .header {
+                font-size: 22px;
+            }
+            .bill {
+                font-size: 16px;
+            }
+            .button {
+                padding: 10px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="close-btn" onclick="closePage()">✕</button>
+    <div class="timer-container">
+        <span class="timer-icon">⏱️</span>
+        <div id="timer">Time left: 10:00</div>
+    </div>
+    <div class="body">
+        <div class="container">
+            <div class="header">Add a Tip</div>
+            <div class="bill"><b>YOUR BILL:</b> {{payment.price}} USDT</div>
+            <div class="bill"><b>NETWORK:</b> {{payment.wallet.network.name}}</div>
+            <a href="/payment/{{payment.id}}/15" class="button">15% <br> Good</a>
+            <a href="/payment/{{payment.id}}/18" class="button">18% <br> Great</a>
+            <a href="/payment/{{payment.id}}/25" class="button">25% <br> Wow!</a>
+            <a href="/payment/{{payment.id}}/30" class="button">30% <br> Best Service Ever!</a>
+            <a href="/custom-tip/{{payment.id}}" class="button">Custom</a>
+            <a href="/payment/{{payment.id}}/0" class="button">No Tip</a>
+        </div>
+    </div>
+    <script>
+        var countdownTime = 600; // 10 минут в секундах
+
+        function closePage(){
+            var confirmClose = confirm("After closing, these payment details will expire");
+            if (confirmClose) {
+                exitPage();
+            }
+        }
+
+        function exitPage() {
+            if (window.opener) {
+                window.opener.location.reload();
+            }
+            fetch(`/close/{{payment.id}}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "closed") {
+                    window.close();
+                }
+            })
+            .catch(error => console.error("Error checking payment status:", error));
+            
+        }
+
+    
+        var paymentCreatedAt = "{{ payment.created_at|date:'Y-m-d\\TH:i:s' }}";
+        var serverTime = "{% now 'Y-m-d\\TH:i:s' %}";
+
+        var createdTime = new Date(paymentCreatedAt).getTime();
+        var now = new Date(serverTime).getTime();
+
+       
+        var timeElapsed = Math.floor((now - createdTime) / 1000);
+        var timeLeft = countdownTime - timeElapsed;
+
+       
+        if (timeLeft <= 0) {
+            exitPage();
+        }
+
+        function updateTimer() {
+            var minutes = Math.floor(timeLeft / 60);
+            var seconds = timeLeft % 60;
+            document.getElementById('timer').textContent = `Time left: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+            if (timeLeft <= 0) {
+                alert("Time is up! The page will close shortly...");
+                exitPage();
+            } else {
+                timeLeft--;
+                setTimeout(updateTimer, 1000);
+            }
+        }
+
+        updateTimer();
+    </script>
+</body>
+</html>

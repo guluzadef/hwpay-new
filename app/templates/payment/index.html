@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment QR Code</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f8f8f8;
+            position: relative;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-block;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 100%;
+            width: 400px;
+            margin: 0 auto;
+        }
+        .qr-code {
+            margin: 20px 0;
+        }
+        .qr-code img {
+            max-width: 100%;
+            height: auto;
+        }
+        .amount {
+            font-size: 16px;
+            word-break: break-word;
+        }
+        .address {
+            font-size: 16px;
+            word-break: break-all;
+            margin: 15px 0;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-wrap: break-word;
+        }
+        .price {
+            font-size: 24px;
+            margin: 15px 0;
+        }
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            background-color: #ff5555;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        .close-btn:hover {
+            background-color: #ff3333;
+            transform: scale(1.1);
+        }
+        .timer-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px auto;
+            background-color: #f8f8f8;
+            border-radius: 20px;
+            padding: 8px 15px;
+            width: fit-content;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .timer-icon {
+            margin-right: 10px;
+            color: #ff5555;
+            font-size: 18px;
+        }
+        #timer {
+            font-size: 16px;
+            font-weight: bold;
+            color: #555;
+        }
+        .payment-details {
+            text-align: left;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        h1 {
+            font-size: 22px;
+            margin-top: 10px;
+        }
+        
+        /* Медиа-запросы для адаптивности */
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 15px;
+                width: 100%;
+            }
+            h1 {
+                font-size: 20px;
+            }
+            .price {
+                font-size: 20px;
+            }
+            .address {
+                font-size: 14px;
+            }
+            .amount {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="close-btn" onclick="closePage()">✕</button>
+    <div class="timer-container">
+        <span class="timer-icon">⏱️</span>
+        <div id="timer">Time left: 10:00</div>
+    </div>
+    <div class="container">
+        <h1>Scan for wallet address</h1>
+        <div class="qr-code">
+            <img src="/generate_qr/{{payment.id}}" alt="QR Code" id="qr_code">
+            <img src="/static/admin/img/icon-yes.svg" style="width:100%;max-width:310px;display:none;margin:0 auto;" id="checked">
+            <p class="address">{{payment.wallet.address}}</p>
+            <p class="price"><b>{{total}} {{payment.wallet.token.name}}</b></p>
+        </div>
+        <div class="payment-details">
+            <p class="amount"><b>Sum for payment:</b> {{payment.price}} {{payment.wallet.token.name}}</p>
+            <p class="amount"><b>Tip:</b> {{tip.price}} {{payment.wallet.token.name}}</p>
+            <p class="amount"><b>Total:</b> {{total}} {{payment.wallet.token.name}}</p>
+            <p class="amount"><b>Network:</b> {{payment.wallet.network.name}}</p>
+        </div>
+    </div>
+    <script>
+    let isPolling = false;
+    let intervalId;
+
+    function pollEndpoint() {
+        if (isPolling) return;
+        isPolling = true;
+
+        fetch('/check-payment/{{payment.id}}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.result === true) {
+                    clearInterval(intervalId);
+                    const qrCode = document.getElementById("qr_code");
+                    const checked = document.getElementById("checked");
+                    qrCode.style.display = "none";
+                    checked.style.display = "block";
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка при запросе:', error);
+            })
+            .finally(() => {
+                isPolling = false;
+            });
+    }
+
+    intervalId = setInterval(pollEndpoint, 3000);
+
+
+
+    var countdownTime = 600; // 10 минут в секундах
+
+    function closePage(){
+        var confirmClose = confirm("After closing, these payment details will expire");
+        if (confirmClose) {
+            exitPage();
+        }
+    }
+
+    function exitPage() {
+        if (window.opener) {
+            window.opener.location.reload();
+        }
+        fetch(`/close/{{payment.id}}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "closed") {
+                window.close();
+            }
+        })
+        .catch(error => console.error("Error checking payment status:", error));
+        
+    }
+
+
+    var paymentCreatedAt = "{{ payment.created_at|date:'Y-m-d\\TH:i:s' }}";
+    var serverTime = "{% now 'Y-m-d\\TH:i:s' %}";
+
+    var createdTime = new Date(paymentCreatedAt).getTime();
+    var now = new Date(serverTime).getTime();
+
+
+    var timeElapsed = Math.floor((now - createdTime) / 1000);
+    var timeLeft = countdownTime - timeElapsed;
+
+
+    if (timeLeft <= 0) {
+        exitPage();
+    }
+
+    function updateTimer() {
+        var minutes = Math.floor(timeLeft / 60);
+        var seconds = timeLeft % 60;
+        document.getElementById('timer').textContent = `Time left: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+        if (timeLeft <= 0) {
+            alert("Time is up! The page will close shortly...");
+            exitPage();
+        } else {
+            timeLeft--;
+            setTimeout(updateTimer, 1000);
+        }
+    }
+
+    updateTimer();
+    </script>
+</body>
+</html>

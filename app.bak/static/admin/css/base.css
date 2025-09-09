@@ -1,0 +1,7 @@
+.theme-toggle {
+    display: none;
+}
+
+.submit-row{
+    z-index: 9999!important;
+}

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stablecoin Selector</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            position: relative;
+            background-color: #f8f8f8;
+        }
+        .hidden {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .visible {
+            display: block;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+        .main-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .coin, .network, .continue {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 5px;
+        }
+        .coin:hover, .network:hover, .continue:hover {
+            transform: scale(1.05);
+        }
+        .coin, .network {
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            display: inline-block;
+        }
+        .selected {
+            background-color: #d0f0d0;
+            border: 1px solid #7cc576;
+        }
+        .continue {
+            background-color: #4a90e2;
+            border: none;
+            color: white;
+            font-weight: bold;
+            padding: 12px 25px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .continue:hover {
+            background-color: #3a80d2;
+        }
+        /* Стиль кнопки "X" */
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            background-color: #ff5555;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        .close-btn:hover {
+            background-color: #ff3333;
+            transform: scale(1.1);
+        }
+        /* Таймер */
+        .timer-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px auto;
+            background-color: #f8f8f8;
+            border-radius: 20px;
+            padding: 8px 15px;
+            width: fit-content;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .timer-icon {
+            margin-right: 10px;
+            color: #ff5555;
+            font-size: 18px;
+        }
+        #timer {
+            font-size: 16px;
+            font-weight: bold;
+            color: #555;
+        }
+        /* Инструкции */
+        .instruction {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 15px;
+        }
+        h1 {
+            color: #333;
+            margin-top: 10px;
+        }
+        h2 {
+            color: #444;
+            font-size: 18px;
+        }
+        
+        /* Медиа-запросы для адаптивности */
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            .main-container {
+                padding: 15px;
+                width: 100%;
+            }
+            .coin, .network {
+                margin: 5px;
+                padding: 8px 15px;
+                font-size: 14px;
+            }
+            h1 {
+                font-size: 22px;
+            }
+            h2 {
+                font-size: 16px;
+            }
+            .instruction {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Кнопка выхода -->
+    <button class="close-btn" onclick="closePage()">✕</button>
+    
+    <!-- Таймер под кнопкой "X" -->
+    <div class="timer-container">
+        <span class="timer-icon">⏱️</span>
+        <div id="timer">Time left: 10:00</div>
+    </div>
+
+    <div class="main-container">
+        <h1>Stablecoin</h1>
+        <p class="instruction">Please select a stablecoin to continue</p>
+
+        <div>
+            {% for token in tokens %}
+                <button class="coin" onclick="showNetworks('{{token.name}}', this)">{{token.name}}</button>
+            {% endfor %}
+        </div>
+
+        <div id="networks" class="hidden">
+            <h2 id="selected-coin">Selected network for USDT</h2>
+            <p class="instruction">Please select a network for this token</p>
+            {% for wallet in wallets %}
+                <button class="network" data-token="{{wallet.token.name}}" onclick="enableContinue('{{wallet.id}}', this)">{{wallet.network.name}}</button>
+            {% endfor %}
+        </div>
+
+        <div id="continue-section" class="hidden">
+            <button class="continue" onclick="nextPage()">Continue</button>
+        </div>
+    </div>
+
+    <script>
+        var coin = '{% if tokens.0 %}{{tokens.0.name}}{% else %}USDT{% endif %}';
+        var network = '';
+        var countdownTime = 600; // 10 минут в секундах
+
+        function showNetworks(_coin, element) {
+            coin = _coin;
+            document.querySelectorAll('.coin').forEach(button => button.classList.remove('selected'));
+            element.classList.add('selected');
+
+            // Показываем блок сетей с анимацией
+            const networksBlock = document.getElementById('networks');
+            networksBlock.classList.remove('hidden');
+            networksBlock.classList.add('visible');
+            
+            document.getElementById('selected-coin').textContent = `Selected network for ${coin}`;
+            
+            // Скрываем все кнопки сетей
+            document.querySelectorAll('.network').forEach(button => {
+                if (button.getAttribute('data-token') !== coin) {
+                    button.style.display = 'none';
+                } else {
+                    button.style.display = 'inline-block';
+                }
+            });
+            
+            // Скрываем секцию продолжения, так как выбор сети сбросился
+            document.getElementById('continue-section').classList.add('hidden');
+            document.getElementById('continue-section').classList.remove('visible');
+        }
+
+        function enableContinue(_network, element) {
+            network = _network;
+            document.querySelectorAll('.network').forEach(button => button.classList.remove('selected'));
+            element.classList.add('selected');
+
+            // Показываем секцию продолжения с анимацией
+            const continueSection = document.getElementById('continue-section');
+            continueSection.classList.remove('hidden');
+            continueSection.classList.add('visible');
+        }
+
+        function nextPage() {
+            location.href = `/tips/{{payment.id}}/${coin}/${network}`;
+        }
+
+        function closePage(){
+            var confirmClose = confirm("After closing, these payment details will expire");
+            if (confirmClose) {
+                exitPage();
+            }
+        }
+
+        function exitPage() {
+            if (window.opener) {
+                window.opener.location.reload();
+            }
+            fetch(`/close/{{payment.id}}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.status)
+                if (data.status === "closed") {
+                    console.log(data)
+                    window.close();
+                }
+            })
+            .catch(error => console.error("Error checking payment status:", error));
+            
+        }
+
+    
+        var paymentCreatedAt = "{{ payment.created_at|date:'Y-m-d\\TH:i:s' }}";
+        var serverTime = "{% now 'Y-m-d\\TH:i:s' %}";
+
+        var createdTime = new Date(paymentCreatedAt).getTime();
+        var now = new Date(serverTime).getTime();
+
+       
+        var timeElapsed = Math.floor((now - createdTime) / 1000);
+        var timeLeft = countdownTime - timeElapsed;
+
+       
+        if (timeLeft <= 0) {
+            exitPage();
+        }
+
+        function updateTimer() {
+            var minutes = Math.floor(timeLeft / 60);
+            var seconds = timeLeft % 60;
+            document.getElementById('timer').textContent = `Time left: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+            if (timeLeft <= 0) {
+                alert("Time is up! The page will close shortly...");
+                exitPage();
+            } else {
+                timeLeft--;
+                setTimeout(updateTimer, 1000);
+            }
+        }
+
+        updateTimer();
+    </script>
+</body>
+</html>
